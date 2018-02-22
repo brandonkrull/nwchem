@@ -84,8 +84,6 @@ C     Correct way:
       call ga_copy (g_zfock_mo_mid, g_w)
       call ga_scale (g_w, zni*zdt)
 
-      
-
 C     IMAG TIME PROP
 c$$$      zdt = dcmplx (-1d0*dt, 0d0) !XXX NEGATIVE?
 c$$$      call ga_copy (g_zfock_mo_mid, g_w)
@@ -113,8 +111,6 @@ C         call magnus_exp_diag (params, g_w, g_expw)
          call errquit (pname//"bad exp_method", 0, 0)
       endif
 
-
-      
 C
 C     Compute eigenvalues of e^W (for diagnostics only)
 C     
@@ -166,7 +162,6 @@ C
       call ga_zgemm ("N", "N", params%ns_mo, params%ns_mo,
      $     params%ns_mo, z1, g_expw, g_zscr1, z0, g_zdens_mo)
 
-
 C     
 C     Clean up.
 C     
@@ -180,4 +175,4 @@ C
 
 
       end subroutine
-c $Id$
+c $Id: prop_magnus_ord2_step.F 24344 2013-06-22 06:15:21Z d3y133 $

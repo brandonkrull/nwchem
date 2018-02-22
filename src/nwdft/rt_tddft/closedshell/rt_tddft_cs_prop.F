@@ -283,7 +283,7 @@ C     (store start times and index for estimaing time remaining)
       est_cputime_start = util_cpusec ()
       est_it_start = it
 
-      
+
       do while (it .lt. params%nt) !start time loop
 
          if (params%prof) call prof_start (elapsed)
@@ -455,6 +455,8 @@ C
      $        call rt_tddft_restart_save (params, it, tt, 1, g_zdens_ao)
 
 
+         call ga_print_file(g_zdens_mo)
+         call system('mv array initial_solution')
 C     
 C     Step MO density matrix forward dt in time.
 C     
@@ -467,6 +469,11 @@ C
             
          elseif (params%prop_method .eq. 3) then
             call prop_magnus_ord2_interpol (params, tt,
+     $           rt_tddft_cs_tdfock, 1,
+     $           g_zfock_mo_n12dt, g_zfock_mo, energies, g_zdens_mo)
+
+         elseif (params%prop_method .eq. 5) then
+            call prop_magnus_ord4_interpol (params, tt,
      $           rt_tddft_cs_tdfock, 1,
      $           g_zfock_mo_n12dt, g_zfock_mo, energies, g_zdens_mo)
 
@@ -488,6 +495,9 @@ C         tt = params%tmin + (it-1)*params%dt
 
       enddo                     !end time loop
 
+      call ga_print_file(g_zdens_mo)
+      call ga_print(g_zdens_mo)
+      call system('mv array final_solution')
 
 C
 C     I suppose technically we should print the time-dependent system

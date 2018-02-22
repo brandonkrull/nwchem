@@ -362,6 +362,9 @@ C
             elseif (method.eq."magnus") then
                prop_method = 3  ! 2nd order magnus
                
+            elseif (method.eq."magnus4") then
+               prop_method = 5  ! 2nd order magnus
+               
             else
                call errquit (pname//"invalid propagator: "//method)
             endif

@@ -560,6 +560,11 @@ C
      $           rt_tddft_os_tdfock, 2,
      $           g_zfock_mo_n12dt, g_zfock_mo, energies, g_zdens_mo)
 
+         elseif (params%prop_method .eq. 5) then
+            call prop_magnus_ord4_interpol (params, tt,
+     $           rt_tddft_os_tdfock, 2,
+     $           g_zfock_mo_n12dt, g_zfock_mo, energies, g_zdens_mo)
+
          else
             call errquit (pname//"bad prop_method", 0, 0)
          endif

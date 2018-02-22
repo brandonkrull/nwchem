@@ -49,6 +49,11 @@ C     == Variables ==
          if (set_method) call errquit (pname//
      $        "cannot set multiple propagators",0,0)
 
+      elseif (method.eq."magnus4") then
+         prop_method = 5        ! 4nd order magnus
+         if (set_method) call errquit (pname//
+     $        "cannot set multiple propagators",0,0)
+
       else
          call errquit (pname//"invalid propagator: "//method)
       endif

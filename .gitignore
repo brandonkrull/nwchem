@@ -105,3 +105,11 @@ $RECYCLE.BIN/
 include_stamp
 dependencies
 # End of debris  created in nwchem compilations
+#
+*.*h
+*.stamp
+bin
+build
+*.log
+NWCHEM_CONFIG
+
