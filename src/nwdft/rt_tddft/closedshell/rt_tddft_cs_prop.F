@@ -487,10 +487,7 @@ C     We are now at t + dt.
 C
          it = it + 1
          tt = tt + params%dt
-C         tt = params%tmin + (it-1)*params%dt  
 
-
-         
          if (params%prof) call prof_end (elapsed, "Complete time step")
 
       enddo                     !end time loop

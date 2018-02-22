@@ -28,22 +28,23 @@ C     == Variables ==
 C     (now hardcoded to be -5*dt)
 C      if (params%tmin.lt.0d0)
 C     $     call errquit(pname//"tmin must be > 0", 0, 0)
-      
+
       if (params%tmax.lt.0d0)
      $     call errquit(pname//"tmax must be > 0", 0, 0)
-      
+
       if (params%dt.lt.0d0)
      $     call errquit(pname//"dt must be > 0", 0, 0)
-      
+
       if (params%tmax.lt.params%tmin)
      $     call errquit(pname//"tmax must be > tmin", 0, 0)
-      
+
       call rt_tddft_init_check_fields (params)
 
       if   ((params%prop_method.ne.1.).and.
      $     (params%prop_method.ne.2.).and.
      $     (params%prop_method.ne.3.).and.
-     $     (params%prop_method.ne.4.))
+     $     (params%prop_method.ne.4.).and.
+     $     (params%prop_method.ne.5.))
      $     call errquit (pname//"bad prop_method", 0, 0)
 
 
@@ -51,8 +52,6 @@ C     $     call errquit(pname//"tmin must be > 0", 0, 0)
      $     (params%checklvl .ne. 2).and.
      $     (params%checklvl .ne. 3)) call errquit(pname//
      $     "checklvl must be 1, 2, 3", 0, 0)
-
-      
 
 C     
 C     Check tolerances, etc

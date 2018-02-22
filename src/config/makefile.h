@@ -40,7 +40,7 @@ endif
 #
 # Do a setenv for NWCHEM_TARGET to be the machine and NWCHEM_TARGET_CPU the CPU to build for
 #
-# NWCHEM_TARGET :  
+# NWCHEM_TARGET : 
 #                  CYGNUS       (Windows under Cygwin tools)
 #                  IBM
 #                  LINUX        NWCHEM_TARGET_CPU :
@@ -67,11 +67,11 @@ ifeq (,$(RELEASE))
      TOPDIR := $(NWCHEM_TOP)
      CODE_BRANCH := Development
 else
-     ifeq (,$(findstring $(RELEASE),$(NWCHEM_TOP)))
-          TOPDIR := $(NWCHEM_TOP)-$(RELEASE)
-     else
+#     ifeq (,$(findstring $(RELEASE),$(NWCHEM_TOP)))
+#          TOPDIR := $(NWCHEM_TOP)-$(RELEASE)
+#     else
           TOPDIR := $(NWCHEM_TOP)
-     endif
+     #endif
      CODE_BRANCH := $(RELEASE)
 endif
 

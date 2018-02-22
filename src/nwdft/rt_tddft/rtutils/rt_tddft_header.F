@@ -117,6 +117,9 @@ C     $        params%tmin, " au = ", params%tmin*au2fs, " fs"
          elseif (params%prop_method.eq.3) then
             write (luout, fmtcha) "Progagation method    : "//
      $           "2nd order Magnus w/ self-consistent interpolation"
+         elseif (params%prop_method.eq.5) then
+            write (luout, fmtcha) "Progagation method    : "//
+     $           "4th order Magnus w/ self-consistent interpolation"
          else
             call errquit (pname//"unknown prop_method", 0, 0)
          endif

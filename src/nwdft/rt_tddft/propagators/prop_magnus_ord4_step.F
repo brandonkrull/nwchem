@@ -80,20 +80,25 @@ C
      $     integral_coefs(3), g_zfock_end, g_zscr2)
 
       if (params%dt == dt) then
-         g_zscr3 = g_zfock_end
-      else
-         g_zscr3 = g_zfock_half
-      endif
-
       !F1F0
       call ga_zgemm ("N", "N",
      $     params%ns_mo, params%ns_mo, params%ns_mo,
-     $     z1, g_zscr3, g_zfock_0, z0, g_zscr1)
+     $     z1, g_zfock_end, g_zfock_0, z0, g_zscr1)
 
       !F0F1 - F1F0
       call ga_zgemm ("N", "N",
      $     params%ns_mo, params%ns_mo, params%ns_mo,
-     $     z1, g_zfock_0, g_zscr3, zn1, g_zscr1)
+     $     z1, g_zfock_0, g_zfock_end, zn1, g_zscr1)
+      else
+         call ga_zgemm ("N", "N",
+     $        params%ns_mo, params%ns_mo, params%ns_mo,
+     $        z1, g_zfock_half, g_zfock_0, z0, g_zscr1)
+
+!     F0F1 - F1F0
+         call ga_zgemm ("N", "N",
+     $        params%ns_mo, params%ns_mo, params%ns_mo,
+     $        z1, g_zfock_0, g_zfock_half, zn1, g_zscr1)
+      endif
 
       call ga_add (zni*zdt, g_zscr2, -(zdt**2)/12.d0, g_zscr1, g_w)
 
