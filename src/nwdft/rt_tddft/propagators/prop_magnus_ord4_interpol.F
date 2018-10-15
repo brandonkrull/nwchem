@@ -153,6 +153,9 @@ C
       integral_coefs = z0
       integral_coefs(:,1) = (/1/4.8d0, 1/3.d0, -1/24.d0/)
       integral_coefs(:,2) = (/1/6.d0, 2/3.d0, 1/6.d0/)
+!      integral_coefs(:,1) = (/0.0d0, 0.0d0, 0.0d0/)
+!      integral_coefs(:,2) = (/1/2.d0, 0.0d0, 1/2.d0/)
+!      integral_coefs(:,2) = (/ 0.0d0,  1.d0, 0.0d0/)      
 C
 C     Allocation
 C
@@ -211,15 +214,16 @@ C     F'(t+dt) = 3*F'(t) - 2F'(t-1/2*dt)
          call ga_copy (g_zdens(imat), g_zdens_p12dt(imat))
          call ga_copy (g_zdens(imat), g_zdens_pdt(imat))
 
-         call prop_magnus_ord4_step (params, 0.5d0*params%dt,
-     $        integral_coefs(:,1),
-     $        g_zfock_mo(imat), g_zfock_p12dt(imat),
-     $        g_zfock_pdt(imat), g_zdens_p12dt(imat))
-
+c$$$         call prop_magnus_ord4_step (params, params%dt,
+c$$$     $        integral_coefs(:,1),
+c$$$     $        g_zfock_mo(imat), g_zfock_p12dt(imat),
+c$$$     $        g_zfock_pdt(imat), g_zdens_p12dt(imat))
+c$$$
          call prop_magnus_ord4_step (params, params%dt,
-     $        integral_coefs(:,2),
+     $        integral_coefs,
      $        g_zfock_mo(imat), g_zfock_p12dt(imat),
-     $        g_zfock_pdt(imat), g_zdens_pdt(imat))
+     $        g_zfock_pdt(imat),  g_zdens_p12dt(imat),
+     $        g_zdens_pdt(imat))
       enddo
 
 C
@@ -278,18 +282,30 @@ C
             call ga_copy (g_zdens_mo(imat), g_zdens_p12dt(imat))
             call ga_copy (g_zdens_mo(imat), g_zdens_pdt(imat))
 
-            call prop_magnus_ord4_step (params, 0.5d0*params%dt,
-     $           integral_coefs(:,1),
-     $           g_zfock_mo(imat), g_zfock_p12dt(imat),
-     $           g_zfock_pdt(imat), g_zdens_p12dt(imat))
+         call prop_magnus_ord4_step (params, params%dt,
+     $        integral_coefs,
+     $        g_zfock_mo(imat), g_zfock_p12dt(imat),
+     $        g_zfock_pdt(imat),  g_zdens_p12dt(imat),
+     $        g_zdens_pdt(imat))
+c$$$            call prop_magnus_ord4_step (params, 0.5d0*params%dt,
+c$$$     $           integral_coefs(:,1),
+c$$$     $           g_zfock_mo(imat), g_zfock_p12dt(imat),
+c$$$     $           g_zfock_pdt(imat), g_zdens_p12dt(imat))
 
-            call prop_magnus_ord4_step (params, params%dt,
-     $           integral_coefs(:,2),
-     $           g_zfock_mo(imat), g_zfock_p12dt(imat),
-     $           g_zfock_pdt(imat), g_zdens_pdt(imat))
-         enddo
-
-C
+c$$$         
+c$$$C
+c$$$C     (5) Propagate P'(t) -> P'(t+dt)
+c$$$C
+c$$$            call ga_copy (g_zdens(imat), g_zdens_pdt(imat))
+c$$$
+c$$$
+c$$$            call prop_magnus_ord4_step (params, params%dt,
+c$$$     $           integral_coefs(:,2),
+c$$$     $           g_zfock_mo(imat), g_zfock_p12dt(imat),
+c$$$     $           g_zfock_pdt(imat), g_zdens_pdt(imat))
+c$$$           
+        enddo            
+C     
 C     Compare old P'(t+dt) to one we just calculated--if same we are
 C     done.  Note we compare alpha and beta densities separately, don't
 C     compare if this is the first iteration.

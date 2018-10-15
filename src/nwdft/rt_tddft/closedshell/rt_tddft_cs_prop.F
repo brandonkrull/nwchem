@@ -455,8 +455,8 @@ C
      $        call rt_tddft_restart_save (params, it, tt, 1, g_zdens_ao)
 
 
-         call ga_print_file(g_zdens_mo)
-         call system('mv array initial_solution')
+C         call ga_print_file(g_zdens_mo)
+C         call system('mv array initial_solution')
 C     
 C     Step MO density matrix forward dt in time.
 C     
@@ -492,9 +492,9 @@ C
 
       enddo                     !end time loop
 
-      call ga_print_file(g_zdens_mo)
+C      call ga_print_file(g_zdens_mo)
       call ga_print(g_zdens_mo)
-      call system('mv array final_solution')
+C      call system('mv array final_solution')
 
 C
 C     I suppose technically we should print the time-dependent system
