@@ -111,7 +111,9 @@ C     == Variables ==
       logical ok
       integer nmats2, nmats3
       integer imat
+      integer Nnodes,n
       character amat(nmats)
+      character nmat(10)      
 
       logical converged
       integer iinter
@@ -129,11 +131,13 @@ C     (simple way: have two GA handles and allocate one or two arrays, depending
       integer g_zfock_pdt(nmats)       ! F'(t+dt); built from P'(t+dt)
       integer g_zfock_ao(nmats), g_zdens_ao(nmats),
      $     g_zfock_ao12(nmats), g_zdens_ao12(nmats)
-
+      integer g_zfock_ao_all(3,nmats)
+      integer g_zfock_mo_all(3,nmats)      
+      integer g_zdens_mo_all(3,nmats)
+      integer g_zdens_ao_all(3,nmats)            
       double precision norm1(nmats), norm2(nmats), diff(nmats)
-      double complex zjunk, integral_coefs(3,2),
-     $     z3, zn2
-
+      double complex zjunk, integral_coefs(3,2), z3, zn2
+      integer g_zdens_array(3), g_zfock_array(3)
       if (params%prof) call prof_start (elapsed)
 
       me = ga_nodeid ()
@@ -146,6 +150,9 @@ C
 
       do imat = 1, nmats
          write (amat(imat), "(i1)") imat !assumes single digit number of mats (ok since max 2)
+      enddo
+      do n = 1, 10
+         write (nmat(n), "(i1)") n !assumes single digit number of Nnodes
       enddo
 
       z3 = dcmplx(3.0, 0.0)
@@ -160,37 +167,31 @@ C
 C     Allocation
 C
       ok = .true.
-
+      Nnodes = 3
       do imat = 1, nmats
-         ok = ok .and. ga_duplicate (g_zdens_mo(imat),
-     $        g_zdens_p12dt(imat), "P'(t+1/2dt) "//amat(imat))
-
-         ok = ok .and. ga_duplicate (g_zdens_mo(imat),
-     $        g_zdens_pdt(imat), "P'(t+dt) "//amat(imat))
-
+         g_zdens_mo_all(1,imat)=g_zdens_mo(imat)
+         g_zfock_mo_all(1,imat)=g_zfock_mo(imat)      
+         do n = 2,Nnodes
+            ok = ok .and. ga_duplicate (g_zdens_mo(imat),
+     $           g_zdens_mo_all(n,imat),
+     $           "zdens_mo  "//nmat(n)//"-"//amat(imat))
+            
+            ok = ok .and. ga_duplicate (g_zfock_mo(imat),
+     $           g_zfock_mo_all(n,imat),
+     $           "zfock_mo "//nmat(n)//"-"//amat(imat))
+            
+            ok = ok .and. ga_create (mt_dcpl, params%ns_ao,params%ns_ao,
+     $           "zfock_ao "//nmat(n)//"-"//amat(imat),
+     $           0, 0, g_zfock_ao_all(n,imat))
+            
+            ok = ok .and. ga_create (mt_dcpl, params%ns_ao,params%ns_ao,
+     $           "zdens_ao "//nmat(n)//"-"//amat(imat),
+     $           0, 0, g_zdens_ao_all(n,imat))
+            
+         end do
          ok = ok .and. ga_duplicate (g_zdens_mo(imat),
      $        g_zdens_pdt_old(imat), "P'(t+dt) old "//amat(imat))
-
-         ok = ok .and. ga_duplicate (g_zfock_mo(imat),
-     $        g_zfock_p12dt(imat), "F'(t+1/2dt) "//amat(imat))
-
-         ok = ok .and. ga_duplicate (g_zfock_mo(imat),
-     $        g_zfock_pdt(imat), "F'(t+dt) "//amat(imat))
-
-         ok = ok .and. ga_create (mt_dcpl, params%ns_ao, params%ns_ao,
-     $        "F12 in magnus inter "//amat(imat),
-     $        0, 0, g_zfock_ao12(imat))
-
-         ok = ok .and. ga_create (mt_dcpl, params%ns_ao, params%ns_ao,
-     $        "F in magnus inter "//amat(imat), 0, 0, g_zfock_ao(imat))
-
-         ok = ok .and. ga_create (mt_dcpl, params%ns_ao, params%ns_ao,
-     $        "P12 in magnus inter "//amat(imat),
-     $        0, 0, g_zdens_ao12(imat))
-
-         ok = ok .and. ga_create (mt_dcpl, params%ns_ao, params%ns_ao,
-     $        "P in magnus inter "//amat(imat), 0, 0, g_zdens_ao(imat))
-
+         
       enddo
       if (.not. ok) call errquit (pname//"allocation failed",0,GA_ERR)
 
@@ -198,32 +199,27 @@ C
       ttdt = tt + params%dt
 
       do imat = 1, nmats
-         call ga_zero (g_zfock_p12dt(imat))
-         call ga_zero (g_zfock_pdt(imat))
+         call ga_zero (g_zfock_mo_all(2,imat))
+         call ga_zero (g_zfock_mo_all(3,imat))
 
 C     F'(t+1/2*dt) = 2*F'(t) - F'(t-1/2*dt)
-         call ga_add (z2, g_zfock_mo(imat), zn1,
-     $        g_zfock_n12dt(imat), g_zfock_p12dt(imat))
+         call ga_add (z2, g_zfock_mo_all(1,imat), zn1,
+     $        g_zfock_n12dt(imat), g_zfock_mo_all(2,imat))
 
 
 C     F'(t+dt) = 3*F'(t) - 2F'(t-1/2*dt)
-         call ga_add (z3, g_zfock_mo(imat), zn2,
-     $        g_zfock_n12dt(imat), g_zfock_pdt(imat))
+         call ga_add (z3, g_zfock_mo_all(1,imat), zn2,
+     $        g_zfock_n12dt(imat), g_zfock_mo_all(3,imat))
 
-         g_zdens(imat) = g_zdens_mo(imat)
-         call ga_copy (g_zdens(imat), g_zdens_p12dt(imat))
-         call ga_copy (g_zdens(imat), g_zdens_pdt(imat))
 
-c$$$         call prop_magnus_ord4_step (params, params%dt,
-c$$$     $        integral_coefs(:,1),
-c$$$     $        g_zfock_mo(imat), g_zfock_p12dt(imat),
-c$$$     $        g_zfock_pdt(imat), g_zdens_p12dt(imat))
-c$$$
+         call ga_copy (g_zdens_mo_all(1,imat), g_zdens_mo_all(2,imat))
+         call ga_copy (g_zdens_mo_all(1,imat), g_zdens_mo_all(3,imat))
+
+         g_zdens_array=g_zdens_mo_all(:,imat)
+         g_zfock_array=g_zfock_mo_all(:,imat)
+
          call prop_magnus_ord4_step (params, params%dt,
-     $        integral_coefs,
-     $        g_zfock_mo(imat), g_zfock_p12dt(imat),
-     $        g_zfock_pdt(imat),  g_zdens_p12dt(imat),
-     $        g_zdens_pdt(imat))
+     $        integral_coefs, g_zfock_array,  g_zdens_array)
       enddo
 
 C
@@ -250,60 +246,35 @@ C     can send the array of GA handles to the closedshell/spinorbit fock
 C     builder without issue (they will only use the first element).
 C
          do imat = 1, nmats
-            call ga_zero (g_zdens_ao12(imat))
-            call ga_zero (g_zdens_ao(imat))
-            call ga_zero (g_zfock_ao12(imat))
-            call ga_zero (g_zfock_ao(imat))
-
-            call canorg_trans (params, "P", "MO->AO",
-     $           g_zdens_p12dt(imat), g_zdens_ao12(imat))
-            call canorg_trans (params, "P", "MO->AO",
-     $           g_zdens_pdt(imat), g_zdens_ao(imat))
-
-            ok = tdfock (params, tt12dt, g_zdens_ao12(imat),
-     $           energies, g_zfock_ao12(imat))
-            if (.not.ok) call errquit (pname//"tdfock12 failed", 0, 0)
-
-            ok = tdfock (params, ttdt, g_zdens_ao(imat),
-     $           energies, g_zfock_ao(imat))
-            if (.not.ok) call errquit (pname//"tdfock failed", 0, 0)
-
-            call canorg_trans (params, "F", "AO->MO",
-     $           g_zfock_ao12(imat), g_zfock_p12dt(imat))
-
-            call canorg_trans (params, "F", "AO->MO",
-     $           g_zfock_ao(imat), g_zfock_pdt(imat))
-
-
+            do n=2,Nnodes
+               call ga_zero (g_zdens_ao_all(n,imat))
+               call ga_zero (g_zfock_ao_all(n,imat))
+               
+               call canorg_trans (params, "P", "MO->AO",
+     $              g_zdens_mo_all(n,imat), g_zdens_ao_all(n,imat))
+               
+               ok = tdfock (params, ttdt, g_zdens_ao_all(n,imat),
+     $              energies, g_zfock_ao_all(n,imat))
+               if (.not.ok) call errquit (pname//"tdfock failed", 0, 0)
+               
+               call canorg_trans (params, "F", "AO->MO",
+     $              g_zfock_ao_all(n,imat), g_zfock_mo_all(n,imat))
+            end do
+      
 C
 C     (5) Propagate P'(t) -> P'(t+dt)
 C
 
-            call ga_copy (g_zdens_mo(imat), g_zdens_p12dt(imat))
-            call ga_copy (g_zdens_mo(imat), g_zdens_pdt(imat))
+            call ga_copy (g_zdens_mo_all(1,imat),g_zdens_mo_all(2,imat))
+            call ga_copy (g_zdens_mo_all(1,imat),g_zdens_mo_all(3,imat))
 
-         call prop_magnus_ord4_step (params, params%dt,
-     $        integral_coefs,
-     $        g_zfock_mo(imat), g_zfock_p12dt(imat),
-     $        g_zfock_pdt(imat),  g_zdens_p12dt(imat),
-     $        g_zdens_pdt(imat))
-c$$$            call prop_magnus_ord4_step (params, 0.5d0*params%dt,
-c$$$     $           integral_coefs(:,1),
-c$$$     $           g_zfock_mo(imat), g_zfock_p12dt(imat),
-c$$$     $           g_zfock_pdt(imat), g_zdens_p12dt(imat))
+            g_zdens_array=g_zdens_mo_all(:,imat)
+            g_zfock_array=g_zfock_mo_all(:,imat)
 
-c$$$         
-c$$$C
-c$$$C     (5) Propagate P'(t) -> P'(t+dt)
-c$$$C
-c$$$            call ga_copy (g_zdens(imat), g_zdens_pdt(imat))
-c$$$
-c$$$
-c$$$            call prop_magnus_ord4_step (params, params%dt,
-c$$$     $           integral_coefs(:,2),
-c$$$     $           g_zfock_mo(imat), g_zfock_p12dt(imat),
-c$$$     $           g_zfock_pdt(imat), g_zdens_pdt(imat))
-c$$$           
+            call prop_magnus_ord4_step (params, params%dt,
+     $           integral_coefs, g_zfock_array,  g_zdens_array)
+
+
         enddo            
 C     
 C     Compare old P'(t+dt) to one we just calculated--if same we are
@@ -312,7 +283,7 @@ C     compare if this is the first iteration.
 C
          if (iinter .gt. 1) then
             do imat = 1, nmats
-               norm1(imat) = mat_norm (g_zdens_pdt(imat))
+               norm1(imat) = mat_norm (g_zdens_mo_all(3,imat))
                norm2(imat) = mat_norm (g_zdens_pdt_old(imat))
                diff(imat) = abs (norm1(imat) - norm2(imat))
             enddo
@@ -350,10 +321,7 @@ C
 C     Store P'(t+dt) for comparison against next iteration.
 C
          do imat = 1, nmats
-            call ga_copy (g_zdens_pdt(imat), g_zdens_pdt_old(imat))
-c$$$            call ga_add (zhalf, g_zdens_mo(imat),
-c$$$     $           zhalf, g_zdens_pdt,
-c$$$     $           g_zdens_p12dt(imat))
+            call ga_copy (g_zdens_mo_all(3,imat), g_zdens_pdt_old(imat))
          enddo
 
          print*, 'total iterations = ', iinter
@@ -364,23 +332,21 @@ C
 C     We're now effectively at t + dt: update stored Fock matrices.
 C
       do imat = 1, nmats
-         call ga_copy (g_zfock_p12dt(imat), g_zfock_n12dt(imat))
-         call ga_copy (g_zfock_pdt(imat), g_zfock_mo(imat))
-         call ga_copy (g_zdens_pdt(imat), g_zdens_mo(imat))
+         call ga_copy (g_zfock_mo_all(2,imat), g_zfock_n12dt(imat))
+         call ga_copy (g_zfock_mo_all(3,imat), g_zfock_mo(imat))
+         call ga_copy (g_zdens_mo_all(3,imat), g_zdens_mo(imat))
 
 C
 C     Clean up.
 C
          ok = .true.
-         ok = ok .and. ga_destroy (g_zdens_p12dt(imat))
-         ok = ok .and. ga_destroy (g_zdens_pdt(imat))
+         do n=2,Nnodes
+            ok = ok .and. ga_destroy (g_zdens_mo_all(n,imat))
+            ok = ok .and. ga_destroy (g_zfock_mo_all(n,imat))
+            ok = ok .and. ga_destroy (g_zfock_ao_all(n,imat))
+            ok = ok .and. ga_destroy (g_zdens_ao_all(n,imat))
+         end do
          ok = ok .and. ga_destroy (g_zdens_pdt_old(imat))
-         ok = ok .and. ga_destroy (g_zfock_p12dt(imat))
-         ok = ok .and. ga_destroy (g_zfock_pdt(imat))
-         ok = ok .and. ga_destroy (g_zfock_ao12(imat))
-         ok = ok .and. ga_destroy (g_zfock_ao(imat))
-         ok = ok .and. ga_destroy (g_zdens_ao12(imat))
-         ok = ok .and. ga_destroy (g_zdens_ao(imat))
       enddo
 
       if (.not. ok) call errquit (pname//"destroys failed",0,GA_ERR)

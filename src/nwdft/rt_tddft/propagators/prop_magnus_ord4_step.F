@@ -17,8 +17,10 @@ C     and W are all ns_mo x ns_mo.  Note that dt can be different from
 C     the simulation time step!
 C
       subroutine prop_magnus_ord4_step (params, dt,
-     $     integral_coefs, g_zfock_0, g_zfock_half, g_zfock_end,
-     $      g_zdens_half, g_zdens_end)
+     $     i_coef, g_zfock, g_zdens)
+c      subroutine prop_magnus_ord4_step (params, dt,
+c     $     i_coef, g_zfock_0, g_zfock_half, g_zfock_end,
+c     $      g_zdens_half, g_zdens_end)
       implicit none
 
 #include "global.fh"
@@ -32,24 +34,19 @@ C
 C     == Inputs ==
       type (rt_params_t), intent(in) :: params
       double precision, intent(in)   :: dt              ! time step dt
-      integer, intent(in) :: g_zfock_0        !  F'(t_n)
-      integer, intent(in) :: g_zfock_half     !  F'(t_n+dt/2)
-      integer, intent(in) :: g_zfock_end      !  F'(t_n+dt)
-      double complex, intent(in) :: integral_coefs(3,2) !  Coefficients for first integral
-
-      
-
-C     == In/out ==
-      integer, intent(in) :: g_zdens_half           ! in = P'(t), out = P'(t+dt/2)
-      integer, intent(in) :: g_zdens_end            ! in = P'(t), out = P'(t+dt)
-
+!      integer, intent(in) :: g_zfock_0        !  F'(t_n)
+!      integer, intent(in) :: g_zfock_half     !  F'(t_n+dt/2)
+      integer, intent(in) :: g_zfock(3) !  F'(t_n+dt)
+      integer, intent(in) :: g_zdens(3)      !  F'(t_n+dt)      
+      double complex, intent(in) :: i_coef(3,2) !  Coefficients for first integral
 
 C     == Parameters ==
       character(*), parameter   :: pname = "prop_magnus_ord4_step: "
 
-
+C     == Arrays ==
+      integer g_zscr(3)
+      
 C     == Variables ==
-      integer g_zscr1, g_zscr2, g_zscr3  ! scratch
       integer g_w               ! W = Omega_1 = -i F'(t+dt/2)
       integer g_expw            ! e^W
       logical ok
@@ -69,24 +66,26 @@ C
 C     Allocation.
 C
       ok = .true.
-      ok = ok .and. ga_duplicate(g_zfock_0, g_w, "ord4w")
-      ok = ok .and. ga_duplicate(g_zfock_0, g_expw, "ord4expw")
-      ok = ok .and. ga_duplicate(g_zfock_0, g_zscr1, "ord4scr1")
-      ok = ok .and. ga_duplicate(g_zfock_0, g_zscr2, "ord4scr2")
-      ok = ok .and. ga_duplicate(g_zfock_0, g_zscr3, "ord4scr3")
+      ok = ok .and. ga_duplicate(g_zfock(1), g_w, "ord4w")
+      ok = ok .and. ga_duplicate(g_zfock(1), g_expw, "ord4expw")
+      ok = ok .and. ga_duplicate(g_zfock(1), g_zscr(1), "ord4scr1")
+      ok = ok .and. ga_duplicate(g_zfock(1), g_zscr(2), "ord4scr2")
+      ok = ok .and. ga_duplicate(g_zfock(1), g_zscr(3), "ord4scr3")
       if (.not. ok) call errquit (pname//"allocation failed",0,GA_ERR)
 
       zdt = dcmplx (dt, 0.0d0)
       zc1 = dcmplx(dt*dt/12.0d0,0.0d0)
       zc2 = dcmplx(dt*dt/48.0d0,0.0d0)      
       !  Get the linear combination for the integral of the first term
-      call ga_add(integral_coefs(1,1), g_zfock_0,
-     $     integral_coefs(2,1), g_zfock_half, g_zscr1)
-      call ga_add(z1, g_zscr1,integral_coefs(3,1), g_zfock_end,g_zscr1)
+!      call ga_add(i_coef(1,1), g_zfock(1),
+!     $     i_coef(2,1), g_zfock(2), g_zscr(1))
+      call ga_add(i_coef(1,1), g_zfock(1),
+     $     i_coef(2,1), g_zfock(2), g_zscr(1))
+      call ga_add(z1, g_zscr(1),i_coef(3,1),g_zfock(3),g_zscr(1))
       
-      call ga_add(integral_coefs(1,2), g_zfock_0,
-     $     integral_coefs(2,2), g_zfock_half, g_zscr2)
-      call ga_add(z1, g_zscr2,integral_coefs(3,2), g_zfock_end,g_zscr2)
+      call ga_add(i_coef(1,2), g_zfock(1),
+     $     i_coef(2,2), g_zfock(2), g_zscr(2))
+      call ga_add(z1, g_zscr(2),i_coef(3,2), g_zfock(3),g_zscr(2))
 
       docom=1
       if (docom .eq. 1) then
@@ -94,39 +93,39 @@ C
       !F1F0
          call ga_zgemm ("N", "N",
      $        params%ns_mo, params%ns_mo, params%ns_mo,
-     $        z1, g_zfock_end, g_zfock_0, z0, g_zscr3)
+     $        z1, g_zfock(3), g_zfock(1), z0, g_zscr(3))
 
 c        F0F1 - F1F0
          call ga_zgemm ("N", "N",
      $        params%ns_mo, params%ns_mo, params%ns_mo,
-     $        z1, g_zfock_0, g_zfock_end, zn1, g_zscr3)
-         call ga_add(zni*zdt, g_zscr2,zc1, g_zscr3, g_zscr2)
+     $        z1, g_zfock(1), g_zfock(3), zn1, g_zscr(3))
+         call ga_add(zni*zdt, g_zscr(2),zc1, g_zscr(3), g_zscr(2))
 
 !         F0Fhalf - FhalfF0
 c$$$         call ga_zgemm ("N", "N",
 c$$$     $        params%ns_mo, params%ns_mo, params%ns_mo,
-c$$$     $        z1, g_zfock_half, g_zfock_0, z0, g_zscr3)
+c$$$     $        z1, g_zfock(2), g_zfock(1), z0, g_zscr(3))
 c$$$
 c$$$         call ga_zgemm ("N", "N",
 c$$$     $     params%ns_mo, params%ns_mo, params%ns_mo,
-c$$$     $     z1, g_zfock_0, g_zfock_half, zn1, g_zscr3)
+c$$$     $     z1, g_zfock(1), g_zfock(2), zn1, g_zscr(3))
 
-      call ga_add(zni*zdt,g_zscr1,zc2, g_zscr3,g_zscr1)      
+      call ga_add(zni*zdt,g_zscr(1),zc2, g_zscr(3),g_zscr(1))      
       else
-         call ga_scale (g_zscr1, zni*zdt)
-         call ga_scale (g_zscr2, zni*zdt)         
+         call ga_scale (g_zscr(1), zni*zdt)
+         call ga_scale (g_zscr(2), zni*zdt)         
       end if
       
 
 !     
-      call exp_pseries (params, g_zscr2, g_expw)
+      call exp_pseries (params, g_zscr(2), g_expw)
 
 C
 C     Compute eigenvalues of e^W (for diagnostics only)
 C
       if (params%checklvl .ge. 2) then
           ok = .true.
-          ok = ok .and. ga_duplicate(g_zdens_end, g_vecs, "vecs")
+          ok = ok .and. ga_duplicate(g_zdens(3), g_vecs, "vecs")
           ok = ok .and. ma_push_get(mt_dcpl, params%ns_mo,
      $        "evals", lvals, ivals)
           if (.not. ok) call errquit (pname//"alloc failed", 0, 0)
@@ -149,11 +148,11 @@ C
 C     Since F is Hermitian, W = -iF is skew Hermitian, and thus e^W must
 C     be unitary.
 C
-         if (.not. mat_is_hermitian (g_zfock_0, params%tol_zero))
+         if (.not. mat_is_hermitian (g_zfock(1), params%tol_zero))
      $        call errquit (pname//"fock0 not hermitian", 0, 0)
-         if (.not. mat_is_hermitian (g_zfock_half, params%tol_zero))
+         if (.not. mat_is_hermitian (g_zfock(2), params%tol_zero))
      $        call errquit (pname//"fockhalf not hermitian", 0, 0)
-         if (.not. mat_is_hermitian (g_zfock_end, params%tol_zero))
+         if (.not. mat_is_hermitian (g_zfock(3), params%tol_zero))
      $        call errquit (pname//"fockend not hermitian", 0, 0)
          if (.not. mat_is_unitary (g_expw, 1d-4))
      $        call errquit (pname//"e^W not unitary", 0, 0)
@@ -164,30 +163,30 @@ C
 C     P'(t+dt) = e^W P'(t) (e^W)^+.  Recycle g_w as scratch space to
 C     hold (e^W)^+.
 C
-C     g_zscr2 = P'(t) (e^W)^+   Note the "C" mean conjugate transpose
-         if (.not. mat_is_unitary (g_expw, 1d-10))
+C     g_zscr(2) = P'(t) (e^W)^+   Note the "C" mean conjugate transpose
+      if (.not. mat_is_unitary (g_expw, 1d-10))
      $        call errquit (pname//"e^W not unitary", 0, 0)
       
-      call ga_zero (g_zscr2)
+      call ga_zero (g_zscr(2))
       call ga_zgemm ("N", "C", params%ns_mo, params%ns_mo,
-     $     params%ns_mo, z1, g_zdens_end, g_expw, z0, g_zscr2)
+     $     params%ns_mo, z1, g_zdens(3), g_expw, z0, g_zscr(2))
 
-C     zdens_end =  (e^W)g_zscr2   
+C     zdens_end =  (e^W)g_zscr(2)   
       call ga_zgemm ("N", "N", params%ns_mo, params%ns_mo,
-     $     params%ns_mo, z1, g_expw, g_zscr2, z0, g_zdens_end)
+     $     params%ns_mo, z1, g_expw, g_zscr(2), z0, g_zdens(3))
   
       call ga_zero (g_expw)      
-      call exp_pseries (params, g_zscr1, g_expw)
+      call exp_pseries (params, g_zscr(1), g_expw)
       if (.not. mat_is_unitary (g_expw, 1d-10))
      $     call errquit (pname//"e^W not unitary", 0, 0)
 
-      call ga_zero (g_zscr1)      
+      call ga_zero (g_zscr(1))      
       call ga_zgemm ("N", "C", params%ns_mo, params%ns_mo,
-     $     params%ns_mo, z1, g_zdens_half, g_expw, z0, g_zscr1)
+     $     params%ns_mo, z1, g_zdens(2), g_expw, z0, g_zscr(1))
 
-C     zdens_end =  (e^W)g_zscr2   
+C     zdens_end =  (e^W)g_zscr(2)   
       call ga_zgemm ("N", "N", params%ns_mo, params%ns_mo,
-     $     params%ns_mo, z1, g_expw, g_zscr1, z0, g_zdens_half)
+     $     params%ns_mo, z1, g_expw, g_zscr(1), z0, g_zdens(2))
 
 C
 C     Clean up.
@@ -201,19 +200,18 @@ C
       if (.not. ok)
      $     call errquit (pname//"failed to destroy GAs 2", 0, GA_ERR)
       
-      ok = ok .and. ga_destroy(g_zscr1)
+      ok = ok .and. ga_destroy(g_zscr(1))
             if (.not. ok)
      $     call errquit (pname//"failed to destroy GAs 3", 0, GA_ERR)
 
-            ok = ok .and. ga_destroy(g_zscr2)
+            ok = ok .and. ga_destroy(g_zscr(2))
       if (.not. ok)
      $     call errquit (pname//"failed to destroy GAs 4", 0, GA_ERR)
             
-      ok = ok .and. ga_destroy(g_zscr3)
+      ok = ok .and. ga_destroy(g_zscr(3))
 
       if (.not. ok)
      $     call errquit (pname//"failed to destroy GAs 5", 0, GA_ERR)
 
-
       end subroutine
-c $Id: prop_magnus_ord2_step.F 24344 2013-06-22 06:15:21Z d3y133 $
+
